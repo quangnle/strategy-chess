@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy Game P5</title>
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="lobby-view">
+            <h1>Sảnh Chờ</h1>
+            <div id="lobby-controls">
+                <input type="text" id="match-name-input" placeholder="Tên trận đấu (không bắt buộc)">
+                <button id="create-match-btn">Tạo Trận</button>
+            </div>
+            <h2>Các trận đang chờ:</h2>
+            <div id="matches-list">
+                </div>
+            <p id="lobby-status"></p>
+        </div>
+
+        <div id="setup-view" style="display: none;">
+            <h1 id="setup-title">Chuẩn Bị Trận: <span id="setup-match-name"></span></h1>
+            <p>Bạn là Người chơi <span id="player-side-indicator-setup"></span></p>
+            <p>Chọn <span id="max-units-indicator">5</span> quân:</p>
+            <div id="unit-selection-options">
+                <button class="unit-select-btn" data-type="Tanker">Tanker (Tốc độ 2, Máu 5, Tầm 1)</button>
+                <button class="unit-select-btn" data-type="Ranger">Ranger (Tốc độ 3, Máu 2, Tầm 3, không đánh gần)</button>
+                <button class="unit-select-btn" data-type="Assassin">Assassin (Tốc độ 4, Máu 3, Tầm 1)</button>
+            </div>
+            <div id="chosen-units-display">
+                <h3>Đội của bạn:</h3>
+                <ul id="chosen-units-list"></ul>
+            </div>
+            <button id="ready-btn" disabled>Sẵn Sàng</button>
+            <p id="setup-status-opponent">Trạng thái đối thủ: Đang chờ...</p>
+            <p id="setup-status-self">Trạng thái của bạn: Chưa sẵn sàng</p>
+        </div>
+
+        <div id="battle-view" style="display: none;">
+            <h1 id="battle-title">Trận Đấu: <span id="battle-match-name"></span></h1>
+            <div id="battle-info">
+                <p>Bạn là Người chơi <span id="player-side-indicator-battle"></span></p>
+                <p id="turn-indicator">Đang chờ game bắt đầu...</p>
+            </div>
+            <div id="game-canvas-container">
+                </div>
+            <div id="battle-controls">
+            <button id="end-turn-btn" disabled>Hoàn Thành Hành Động</button>
+            <button id="skip-unit-action-btn" disabled>Bỏ Qua Lượt</button>
+        </div>
+            <div id="action-log"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <script src="client.js"></script>
+    <script src="sketch.js"></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align top */
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+    color: #333;
+}
+
+#game-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+    width: 90%;
+    max-width: 900px;
+}
+
+h1, h2, h3 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+/* Lobby Styling */
+#lobby-controls {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+}
+#match-name-input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+}
+#matches-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    padding: 0;
+    list-style-type: none;
+    border-radius: 4px;
+}
+.match-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.match-item:last-child {
+    border-bottom: none;
+}
+.match-item:hover {
+    background-color: #f9f9f9;
+}
+.match-item span {
+    font-weight: bold;
+}
+.match-item button.join-btn {
+    padding: 8px 12px;
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+.match-item button.join-btn:hover {
+    background-color: #4cae4c;
+}
+#lobby-status {
+    text-align: center;
+    margin-top: 15px;
+    font-style: italic;
+}
+
+/* Setup Styling */
+#setup-view h1 {
+    margin-bottom: 20px;
+}
+#unit-selection-options {
+    display: flex;
+    flex-direction: column; /* Hoặc row tùy bạn muốn */
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+.unit-select-btn {
+    padding: 10px 15px;
+    background-color: #337ab7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    width: auto; /* Cho phép nút co giãn theo nội dung */
+    min-width: 250px; /* Chiều rộng tối thiểu */
+    text-align: left;
+}
+.unit-select-btn:hover {
+    background-color: #286090;
+}
+.unit-select-btn:disabled {
+    background-color: #77a0c5;
+    cursor: not-allowed;
+}
+#chosen-units-display h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+#chosen-units-list {
+    list-style-type: none;
+    padding: 0;
+    margin-bottom: 20px;
+    text-align: center;
+}
+#chosen-units-list li {
+    padding: 5px;
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 3px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#chosen-units-list button.remove-unit-btn {
+    background-color: #d9534f;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+#ready-btn {
+    display: block;
+    margin: 20px auto;
+    padding: 12px 25px;
+    background-color: #f0ad4e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1em;
+}
+#ready-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+#ready-btn:hover:not(:disabled) {
+    background-color: #ec971f;
+}
+#setup-status-opponent, #setup-status-self {
+    text-align: center;
+    font-style: italic;
+    margin-top: 10px;
+}
+
+/* Battle Styling */
+#battle-info {
+    text-align: center;
+    margin-bottom: 15px;
+}
+#turn-indicator {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #d9534f;
+}
+#game-canvas-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px auto;
+    border: 2px solid #555;
+    width: fit-content; /* Hoặc kích thước cố định phù hợp với canvas */
+    background-color: #e9e9e9; /* Màu nền nhẹ cho khu vực canvas */
+}
+canvas { /* p5 canvas */
+    display: block; /* Loại bỏ khoảng trống thừa bên dưới canvas */
+}
+#battle-controls {
+    text-align: center;
+    margin-top: 15px;
+}
+#end-turn-btn {
+    padding: 10px 20px;
+    background-color: #d9534f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+#end-turn-btn:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+}
+#end-turn-btn:hover:not(:disabled) {
+    background-color: #c9302c;
+}
+
+/* General Button Styling */
+button {
+    padding: 10px 18px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+button:hover:not(:disabled) {
+    opacity: 0.9;
+}
