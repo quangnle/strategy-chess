@@ -185,7 +185,7 @@ const sketchFunction = (p) => {
             p.textSize(TILE_SIZE * 0.4);
             p.text(renderConfig.symbol, xPos, yPos);
 
-            // Draw HP bar (logic vẽ HP giữ nguyên như lần sửa trước)
+            // Draw HP bar 
             if (unit.hp !== undefined && unit.maxHp !== undefined) {
                 const hpBarWidth = TILE_SIZE * 0.7;
                 const hpBarHeight = 6;

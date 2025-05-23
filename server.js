@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
-const { Game, UNIT_STATS } = require('./battle-logic');
+const { Game, UNIT_STATS } = require('./battle-logic'); 
 
 const app = express();
 const server = http.createServer(app);
@@ -9,14 +9,13 @@ const io = socketIO(server);
 
 app.use(express.static('public'));
 
-let matches = {};
+let matches = {}; // { matchId: { id, name, players: [{id, socket, side, ready, unitsSetup, name}], gameState, gameStarted, host } }
 let nextMatchId = 1;
 const MAX_UNITS_PER_PLAYER = 5;
 
 io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
+    console.log(`User connected: ${socket.id}`);
 
-    // --- Sảnh chờ (Lobby) ---
     socket.on('getMatches', () => {
         const availableMatches = Object.values(matches)
             .filter(match => match.players.length < 2 && !match.gameStarted)
@@ -26,74 +25,103 @@ io.on('connection', (socket) => {
 
     socket.on('createMatch', (matchName) => {
         const matchId = `match-${nextMatchId++}`;
+        const creatorName = `Player 1`; // Người tạo luôn là Player 1 (side 0)
         matches[matchId] = {
             id: matchId,
-            name: matchName || `Match ${matchId}`,
-            players: [{ id: socket.id, socket: socket, side: 0, ready: false, unitsSetup: [] }],
+            name: matchName || `Trận ${nextMatchId -1}`,
+            players: [{ id: socket.id, socket: socket, side: 0, ready: false, unitsSetup: [], name: creatorName }],
             gameState: null,
             gameStarted: false,
             host: socket.id
         };
         socket.join(matchId);
-        socket.emit('matchCreated', { matchId, side: 0, matchName: matches[matchId].name });
+
+        socket.emit('matchCreated', {
+            matchId,
+            side: 0,
+            matchName: matches[matchId].name
+        });
+
+        socket.emit('navigateToSetup', {
+            matchId,
+            matchName: matches[matchId].name,
+            players: matches[matchId].players.map(p => ({ id: p.id, side: p.side, name: p.name, ready: p.ready }))
+        });
+
         broadcastMatchList();
-        console.log(`Match created: ${matchName || `Match ${matchId}`} (${matchId}) by ${socket.id}`);
+        console.log(`Match created: "${matches[matchId].name}" (ID: ${matchId}) by ${socket.id}. Creator sent to setup.`);
     });
 
     socket.on('joinMatch', (matchId) => {
         const match = matches[matchId];
         if (match && match.players.length < 2 && !match.gameStarted) {
             const newPlayerSide = match.players[0].side === 0 ? 1 : 0;
-            match.players.push({ id: socket.id, socket: socket, side: newPlayerSide, ready: false, unitsSetup: [] });
+            const newPlayerName = `Player ${newPlayerSide + 1}`;
+            const newPlayer = { id: socket.id, socket: socket, side: newPlayerSide, ready: false, unitsSetup: [], name: newPlayerName };
+            match.players.push(newPlayer);
             socket.join(matchId);
 
-            socket.emit('joinedMatch', { matchId, side: newPlayerSide, matchName: match.name });
-            socket.to(matchId).emit('playerJoined', { playerId: socket.id, side: newPlayerSide, playerName: `Player ${newPlayerSide + 1}` });
+            socket.emit('joinedMatch', {
+                matchId,
+                side: newPlayerSide,
+                matchName: match.name
+            });
 
-            console.log(`${socket.id} joined ${match.name} (${matchId}) as side ${newPlayerSide}`);
+            socket.emit('navigateToSetup', {
+                matchId,
+                matchName: match.name,
+                players: match.players.map(p => ({ id: p.id, side: p.side, name: p.name, ready: p.ready }))
+            });
 
-            if (match.players.length === 2) {
-                io.to(matchId).emit('navigateToSetup', { matchId, players: match.players.map(p => ({id: p.id, side: p.side})) });
-                console.log(`Match ${matchId} is full. Moving to setup.`);
+            const creator = match.players.find(p => p.id !== socket.id);
+            if (creator) {
+                io.to(creator.id).emit('opponentJoinedSetup', {
+                    opponent: { id: newPlayer.id, side: newPlayer.side, name: newPlayer.name, ready: newPlayer.ready },
+                    players: match.players.map(p => ({ id: p.id, side: p.side, name: p.name, ready: p.ready }))
+                });
             }
+
+            console.log(`${socket.id} (${newPlayerName}) joined "${match.name}" (ID: ${matchId}). Sent to setup.`);
             broadcastMatchList();
         } else {
-            socket.emit('joinError', 'Match not found, full, or already started.');
+            socket.emit('joinError', 'Trận không tồn tại, đã đầy hoặc đã bắt đầu.');
         }
     });
 
-    // --- Giai đoạn Chuẩn bị (Setup) ---
-    socket.on('ready', (data) => {
+    socket.on('ready', (data) => { // data: { matchId, units: ['Tanker', ...] }
         const match = matches[data.matchId];
-        if (!match) {
-            socket.emit('setupError', 'Match not found.');
+        if (!match || match.gameStarted) {
+            socket.emit('setupError', 'Trận không hợp lệ hoặc đã bắt đầu.');
             return;
         }
 
         const player = match.players.find(p => p.id === socket.id);
         if (player) {
             if (data.units.length !== MAX_UNITS_PER_PLAYER) {
-                socket.emit('setupError', `Must select ${MAX_UNITS_PER_PLAYER} units.`);
+                socket.emit('setupError', `Phải chọn đủ ${MAX_UNITS_PER_PLAYER} quân.`);
                 return;
             }
             player.ready = true;
             player.unitsSetup = data.units;
-            console.log(`Player ${socket.id} in match ${data.matchId} is ready with units:`, data.units);
+            console.log(`${player.name} (ID: ${socket.id}) in match "${match.name}" is ready.`);
 
-            socket.to(data.matchId).emit('playerReadyUpdate', { playerId: socket.id, isReady: true });
+            const otherPlayer = match.players.find(p => p.id !== socket.id);
+            if (otherPlayer) {
+                io.to(otherPlayer.id).emit('playerReadyUpdate', { playerId: socket.id, playerName: player.name, isReady: true });
+            }
 
             const allReady = match.players.every(p => p.ready);
             if (allReady && match.players.length === 2) {
-                console.log(`Both players ready in ${data.matchId}. Starting game.`);
+                console.log(`Both players ready in "${match.name}". Starting game.`);
                 match.gameStarted = true;
                 match.gameState = new Game();
 
-                match.players.forEach((p) => {
-                    const side = p.side;
+                match.players.forEach((p_loop) => {
+                    const side = p_loop.side;
                     const unitRow = side === 0 ? 1 : 9;
-                    const startCol = Math.floor((11 - MAX_UNITS_PER_PLAYER) / 2);
+                    const startCol = Math.floor((11 - MAX_UNITS_PER_PLAYER) / 2) ;
 
-                    p.unitsSetup.forEach((unitType, index) => {
+                    p_loop.unitsSetup.forEach((unitType, index) => {
                         const unitId = `unit-${side}-${index}`;
                         match.gameState.addInitialUnit({
                             id: unitId,
@@ -105,116 +133,116 @@ io.on('connection', (socket) => {
                     });
                 });
 
-                match.gameState.startNewRound(); // QUAN TRỌNG: Bắt đầu round đầu tiên, tính initiative
+                match.gameState.startNewRound();
                 io.to(data.matchId).emit('battleStart', match.gameState.getState());
                 broadcastMatchList();
             }
+        } else {
+            socket.emit('setupError', 'Không tìm thấy người chơi trong trận.');
         }
     });
 
-    // --- Giai đoạn Trận đấu (Battle) ---
-    function handleActionAndRespond(matchId, actionPromise) {
+    function handleActionAndRespond(matchId, actingSocketId, actionPromise) {
         actionPromise.then(result => {
             const match = matches[matchId];
-            if (!match || !match.gameState) return; // Trận đấu có thể đã kết thúc/dọn dẹp
+            if (!match || !match.gameState) return;
 
             if (result.success) {
                 io.to(matchId).emit('gameStateUpdate', match.gameState.getState());
-                // checkWinConditions được gọi bên trong battle-logic và kết quả có thể nằm trong 'result'
                 if (result.gameOver) {
-                    io.to(matchId).emit('gameOver', { winner: result.winner, reason: result.winReason || "Game ended." });
+                    io.to(matchId).emit('gameOver', { winner: result.winner, reason: result.winReason || "Trận đấu kết thúc." });
                     cleanupMatch(matchId);
                 }
             } else {
-                // Gửi lỗi về cho client đã thực hiện hành động
-                const playerSocket = match.players.find(p => p.id === socket.id)?.socket;
+                const playerSocket = io.sockets.sockets.get(actingSocketId); // Lấy socket của người gửi request
                 if (playerSocket) {
                     playerSocket.emit('actionError', result.message);
+                } else {
+                    console.warn(`Could not find socket for ID ${actingSocketId} to send actionError.`);
                 }
             }
         }).catch(error => {
             console.error("Error processing action:", error);
-            const playerSocket = matches[matchId]?.players.find(p => p.id === socket.id)?.socket;
+            const playerSocket = io.sockets.sockets.get(actingSocketId);
             if (playerSocket) {
-                playerSocket.emit('actionError', "Server error processing action.");
+                playerSocket.emit('actionError', "Lỗi server khi xử lý hành động.");
             }
         });
     }
 
-
-    socket.on('move', (data) => { // data: { matchId, unitId, targetRow, targetCol }
+    socket.on('move', (data) => {
         const match = matches[data.matchId];
-        if (!match || !match.gameState || !match.gameStarted) return socket.emit('actionError', 'Game not active.');
+        if (!match || !match.gameState || !match.gameStarted) return socket.emit('actionError', 'Trận đấu chưa kích hoạt.');
         const player = match.players.find(p => p.id === socket.id);
-        if (!player) return socket.emit('actionError', 'Player not found in match.');
+        if (!player) return socket.emit('actionError', 'Không tìm thấy người chơi trong trận.');
 
-        // Sử dụng Promise để xử lý bất đồng bộ nếu có trong tương lai, và để handleActionAndRespond
         const actionPromise = Promise.resolve(
             match.gameState.moveUnit(data.unitId, data.targetCol, data.targetRow, player.side)
         );
-        handleActionAndRespond(data.matchId, actionPromise);
+        handleActionAndRespond(data.matchId, socket.id, actionPromise);
     });
 
-    socket.on('attack', (data) => { // data: { matchId, attackerId, targetId }
+    socket.on('attack', (data) => {
         const match = matches[data.matchId];
-        if (!match || !match.gameState || !match.gameStarted) return socket.emit('actionError', 'Game not active.');
+        if (!match || !match.gameState || !match.gameStarted) return socket.emit('actionError', 'Trận đấu chưa kích hoạt.');
         const player = match.players.find(p => p.id === socket.id);
-        if (!player) return socket.emit('actionError', 'Player not found in match.');
+        if (!player) return socket.emit('actionError', 'Không tìm thấy người chơi trong trận.');
 
         const actionPromise = Promise.resolve(
             match.gameState.attackUnit(data.attackerId, data.targetId, player.side)
         );
-        handleActionAndRespond(data.matchId, actionPromise);
+        handleActionAndRespond(data.matchId, socket.id, actionPromise);
     });
 
     socket.on('finishUnitAction', (data) => { // data: { matchId, unitId }
         const match = matches[data.matchId];
-        if (!match || !match.gameState || !match.gameStarted) return socket.emit('actionError', 'Game not active.');
+        if (!match || !match.gameState || !match.gameStarted) return socket.emit('actionError', 'Trận đấu chưa kích hoạt.');
         const player = match.players.find(p => p.id === socket.id);
-        if (!player) return socket.emit('actionError', 'Player not found.');
+        if (!player) return socket.emit('actionError', 'Không tìm thấy người chơi.');
 
-        // Kiểm tra xem có phải quân của người chơi này đang cố gắng kết thúc không
         const unitToFinish = match.gameState.getUnitById(data.unitId);
         if (!unitToFinish || unitToFinish.owner !== player.side) {
-            return socket.emit('actionError', 'Cannot finish action for this unit.');
+            return socket.emit('actionError', 'Không thể kết thúc hành động cho quân này.');
+        }
+        if (unitToFinish.id !== match.gameState.activeUnitId) {
+            return socket.emit('actionError', 'Đây không phải là quân đang được kích hoạt.');
         }
 
         const actionPromise = Promise.resolve(
             match.gameState.requestFinishUnitAction(data.unitId)
         );
-        handleActionAndRespond(data.matchId, actionPromise);
+        handleActionAndRespond(data.matchId, socket.id, actionPromise);
     });
 
-
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        console.log(`User disconnected: ${socket.id}`);
         for (const matchId in matches) {
             const match = matches[matchId];
             const playerIndex = match.players.findIndex(p => p.id === socket.id);
+
             if (playerIndex !== -1) {
                 const disconnectedPlayer = match.players.splice(playerIndex, 1)[0];
-                console.log(`Player ${socket.id} (side ${disconnectedPlayer.side}) removed from match ${matchId}`);
+                console.log(`${disconnectedPlayer.name || 'Player'} (ID: ${socket.id}, side ${disconnectedPlayer.side}) removed from match "${match.name}".`);
 
-                if (match.gameStarted && match.gameState && match.gameState.winner === null) { // Game đang diễn ra và chưa có người thắng
-                    if (match.players.length > 0) { // Nếu còn người chơi
-                        const winnerSide = match.players[0].side; // Người còn lại thắng
-                        io.to(matchId).emit('gameOver', { winner: winnerSide, reason: 'Opponent disconnected.' });
+                if (match.gameStarted && match.gameState && match.gameState.winner === null) {
+                    if (match.players.length > 0) {
+                        const winnerSide = match.players[0].side;
+                        const winnerName = match.players[0].name;
+                        io.to(matchId).emit('gameOver', { winner: winnerSide, reason: `${disconnectedPlayer.name || 'Đối thủ'} đã ngắt kết nối. ${winnerName || 'Bạn'} thắng!` });
                     }
                     cleanupMatch(matchId);
+                } else if (!match.gameStarted && match.players.length === 1) {
+                    const remainingPlayer = match.players[0];
+                    remainingPlayer.ready = false;
+                    io.to(remainingPlayer.id).emit('opponentLeftSetup', {
+                        matchId: match.id,
+                        matchName: match.name,
+                        remainingPlayerInfo: { id: remainingPlayer.id, name: remainingPlayer.name, ready: remainingPlayer.ready }
+                    });
+                    console.log(`Match "${match.name}" back to 1 player in setup. Waiting for new opponent.`);
                 } else if (match.players.length === 0) {
+                    console.log(`Match "${match.name}" is empty, cleaning up.`);
                     cleanupMatch(matchId);
-                } else { // Trận chưa bắt đầu, hoặc đã kết thúc
-                    // Nếu trận chưa bắt đầu và còn người, thông báo cho người còn lại
-                    if (!match.gameStarted) {
-                         match.players[0].ready = false;
-                         io.to(matchId).emit('opponentLeftSetup', {
-                             matchId: match.id,
-                             name: match.name,
-                             playerCount: match.players.length,
-                             // Gửi thông tin về người chơi còn lại để client có thể reset trạng thái ready của họ
-                             remainingPlayerId: match.players[0].id
-                         });
-                    }
                 }
                 broadcastMatchList();
                 break;
@@ -231,11 +259,9 @@ io.on('connection', (socket) => {
 
     function cleanupMatch(matchId) {
         if (matches[matchId]) {
-            // Có thể thêm logic dọn dẹp tài nguyên của game nếu cần
-            // matches[matchId].gameState = null; // Hoặc xóa hẳn
             delete matches[matchId];
             broadcastMatchList();
-            console.log(`Match ${matchId} cleaned up.`);
+            console.log(`Match ${matchId} cleaned up and removed.`);
         }
     }
 });
