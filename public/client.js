@@ -51,7 +51,6 @@ function showView(viewName) {
 }
 
 // --- Lobby Logic ---
-// ... (Giữ nguyên logic Lobby: createMatchButton, displayMatches, socket.on('matchList'...), 'matchCreated', 'joinedMatch', 'playerJoined', 'joinError') ...
 createMatchButton.addEventListener('click', () => {
     const matchName = matchNameInput.value.trim();
     socket.emit('createMatch', matchName);
@@ -99,7 +98,6 @@ socket.on('joinError', (message) => {
 
 
 // --- Setup Logic ---
-// ... (Giữ nguyên logic Setup: navigateToSetup, unit selection, readyButton, playerReadyUpdate, setupError) ...
 socket.on('navigateToSetup', (data) => {
     if (data.matchId === currentMatchId) {
         showView('setup');
@@ -180,8 +178,8 @@ function updateBattleUI(gameState) {
         let canSkip = false;
 
         if (isMyUnitActive && activeUnitState) {
-            if (!activeUnitState.attacked) { // Chỉ có thể tương tác nếu quân chưa tấn công (vì tấn công tự kết thúc)
-                // Có thể "Bỏ Qua" nếu chưa làm gì cả (chưa di chuyển VÀ chưa tấn công)
+            if (!activeUnitState.attacked) {    // Chỉ có thể tương tác nếu quân chưa tấn công (vì tấn công tự kết thúc)
+                                                // Có thể "Bỏ Qua" nếu chưa làm gì cả (chưa di chuyển VÀ chưa tấn công)
                 if (!activeUnitState.moved) {
                     canSkip = true;
                 }
@@ -222,7 +220,6 @@ socket.on('battleStart', (initialGameState) => {
     battleMatchNameSpan.textContent = currentMatchName;
     playerSideIndicatorBattle.textContent = `${playerSide + 1} (Phe ${playerSide})`;
     // finishActionButton.textContent = "Hoàn thành Hành Động"; // Sẽ được set trong updateBattleUI
-
 
     if (!p5Instance) {
         p5Instance = new p5(sketchFunction, gameCanvasContainer);
