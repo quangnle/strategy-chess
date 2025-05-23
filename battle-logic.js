@@ -4,9 +4,9 @@ const BOARD_COLS = 11;
 const BOARD_ROWS = 11;
 
 const UNIT_STATS = {
-    TANKER: { speed: 1, hp: 5, range: 1, type: 'Tanker' },
+    TANKER: { speed: 2, hp: 5, range: 1, type: 'Tanker' },
     RANGER: { speed: 3, hp: 2, range: 4, type: 'Ranger', cannotAttackAdjacent: true },
-    ASSASSIN: { speed: 4, hp: 3, range: 1, type: 'Assassin' },
+    ASSASIN: { speed: 4, hp: 3, range: 1, type: 'Assasin' },
     BASE: { hp: 5, type: 'Base', speed: 0, range: 0 } // Bases do not act
 };
 
